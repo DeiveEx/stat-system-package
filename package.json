@@ -1,0 +1,24 @@
+{
+    "name": "com.deiveex.statsystem",
+    "version": "1.0.0",
+    "displayName": "Stat System",
+    "description": "An in-game console that shows Unity Logs and can execute custom commands",
+    "unity": "2022.3",
+    "unityRelease": "16f1",
+    "documentationUrl": "",
+    "changelogUrl": "",
+    "licensesUrl": "",
+    "dependencies": {
+        
+    },
+    "keywords": [
+        "stat",
+        "system",
+        "modifier"
+    ],
+    "author": {
+        "name": "Felipe Carmo Cavaco",
+        "email": "felipe.carmo.cavaco@gmail.com",
+        "url": "https://github.com/DeiveEx"
+    }
+}
