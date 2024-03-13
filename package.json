@@ -2,7 +2,7 @@
     "name": "com.deiveex.statsystem",
     "version": "1.0.0",
     "displayName": "Stat System",
-    "description": "An in-game console that shows Unity Logs and can execute custom commands",
+    "description": "A dynamic stat system for unity",
     "unity": "2022.3",
     "unityRelease": "16f1",
     "documentationUrl": "",
