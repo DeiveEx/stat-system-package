@@ -1,5 +1,6 @@
 using System.Linq;
 using UnityEditor;
+using UnityEngine;
 
 namespace DeiveEx.StatSystem.Editor
 {
@@ -20,6 +21,9 @@ namespace DeiveEx.StatSystem.Editor
                 container.onModifierAdded += UpdateUI;
                 container.onModifierRemoved += UpdateUI;
             }
+            
+            if (Application.isPlaying)
+                _foldout = true;
         }
         private void OnDisable()
         {
