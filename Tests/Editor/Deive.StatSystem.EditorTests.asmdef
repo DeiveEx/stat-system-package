@@ -1,10 +1,10 @@
 {
-    "name": "StatSystem.EditorTests",
+    "name": "Deive.StatSystem.EditorTests",
     "rootNamespace": "",
     "references": [
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
-        "StatSystem"
+        "DeiveEx.StatSystem"
     ],
     "includePlatforms": [
         "Editor"

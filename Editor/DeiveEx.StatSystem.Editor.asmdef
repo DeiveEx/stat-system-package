@@ -1,8 +1,12 @@
 {
-    "name": "StatSystem",
-    "rootNamespace": "DeiveEx.StatSystem",
-    "references": [],
-    "includePlatforms": [],
+    "name": "DeiveEx.StatSystem.Editor",
+    "rootNamespace": "DeiveEx.StatSystem.Editor",
+    "references": [
+        "GUID:131d84e6846a52c4783fea2fd983dd8b"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
