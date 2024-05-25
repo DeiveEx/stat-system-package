@@ -61,12 +61,12 @@ namespace DeiveEx.StatSystem.Editor
                 var container = _instance.GetStatsContainer(containerId);
                 EditorGUILayout.LabelField($"= Container<{containerId}>");
 
-                foreach (var statName in container.StatNames)
+                foreach (var stat in container.Stats)
                 {
                     EditorGUILayout.BeginHorizontal();
                     
-                    EditorGUILayout.PrefixLabel(statName);
-                    EditorGUILayout.LabelField($"Current: {container.GetStatCurrentValue(statName)} (Base: {container.GetStatBaseValue(statName)})");
+                    EditorGUILayout.PrefixLabel(stat.Name);
+                    EditorGUILayout.LabelField($"Current: {container.GetStatCurrentValue(stat.Name)} (Base: {container.GetStatBaseValue(stat.Name)})");
                     
                     EditorGUILayout.EndHorizontal();
                 }

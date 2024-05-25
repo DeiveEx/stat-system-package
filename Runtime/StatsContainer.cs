@@ -22,7 +22,7 @@ namespace DeiveEx.StatSystem
 		#region Properties
 
 		public string Id => _id;
-		public IEnumerable<string> StatNames => _stats.Keys.ToList();
+		public IEnumerable<Stat> Stats => _stats.Values;
 		
 		#endregion
 
