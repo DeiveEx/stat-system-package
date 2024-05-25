@@ -63,7 +63,7 @@ namespace DeiveEx.StatSystem
 		}
 
 		/// <summary>
-		/// Checks if a stat exists. If it does, set the stat value, if it doesn't, create the stat with the given value
+		/// Checks if a stat exists. If it does, set the stat base value, if it doesn't, create the stat with the given value
 		/// </summary>
 		/// <param name="statID">The stat to set/create</param>
 		/// <param name="value">The value to set the stat to</param>
@@ -248,6 +248,34 @@ namespace DeiveEx.StatSystem
 			}
 
 			return sb.ToString();
+		}
+
+		public StatsContainerState GetState()
+		{
+			var stats = new List<StatWrapper>();
+
+			foreach (var stat in Stats)
+			{
+				stats.Add(new StatWrapper()
+				{
+					StatName = stat.Name,
+					BaseValue = stat.BaseValue,
+				});
+			}
+
+			return new StatsContainerState()
+			{
+				StatCount = stats.Count,
+				Stats = stats.ToArray(),
+			};
+		}
+
+		public void ApplyState(StatsContainerState state)
+		{
+			foreach (var statWrapper in state.Stats)
+			{
+				SetOrAddStat(statWrapper.StatName, statWrapper.BaseValue);
+			}
 		}
 		
 		#endregion
