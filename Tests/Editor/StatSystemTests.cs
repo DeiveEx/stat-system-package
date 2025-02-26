@@ -3,6 +3,7 @@ using NUnit.Framework;
 using DeiveEx.StatSystem;
 using UnityEngine;
 
+[Category("StatsSystem")]
 public class StatSystemTests
 {
 	private Stat _testStat;
