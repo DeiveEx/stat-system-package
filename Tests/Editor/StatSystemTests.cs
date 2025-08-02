@@ -232,17 +232,17 @@ public class StatSystemTests
 		int baseChanged = 0;
 		int modifierChanged = 0;
 
-		_testStat.onBaseValueChanged += (sender, e) =>
+		_testStat.OnBaseValueChanged += (sender, e) =>
 		{
 			baseChanged++;
 		};
 
-		_testStat.onModifierAdded += (sender, e) =>
+		_testStat.OnModifierAdded += (sender, e) =>
 		{
 			modifierChanged++;
 		};
 		
-		_testStat.onModifierRemoved += (sender, e) =>
+		_testStat.OnModifierRemoved += (sender, e) =>
 		{
 			modifierChanged--;
 		};

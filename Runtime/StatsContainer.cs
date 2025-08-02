@@ -55,9 +55,9 @@ namespace DeiveEx.StatSystem
 			if (StatExists(newStat.Name))
 				throw new InvalidOperationException($"A stat with the name [{newStat.Name}] was already added to the stat list");
 
-			newStat.onBaseValueChanged += Stat_OnBaseValueChanged;
-			newStat.onModifierAdded += Stat_OnModifierAdded;
-			newStat.onModifierRemoved += Stat_OnModifierRemoved;
+			newStat.OnBaseValueChanged += Stat_OnBaseValueChanged;
+			newStat.OnModifierAdded += Stat_OnModifierAdded;
+			newStat.OnModifierRemoved += Stat_OnModifierRemoved;
 
 			_stats.Add(newStat.Name, newStat);
 		}

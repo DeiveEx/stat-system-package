@@ -1,28 +1,26 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEngine;
 
 namespace DeiveEx.StatSystem
 {
 	public class StatChangedEventArgs : EventArgs
 	{
-		public string id;
-		public Stat stat;
-		public float oldBaseValue;
-		public float newBaseValue;
+		public string ID;
+		public Stat Stat;
+		public float OldBaseValue;
+		public float NewBaseValue;
 	}
 	
-	[Serializable]
 	public class Stat
 	{
 		#region Fields
 
-		[SerializeField] private string _name;
-		[SerializeField] private float _baseValue;
+		private readonly string _name;
+		private float _baseValue;
 
 		private float _currentValue;
-		private List<StatModifier> _modifiers = new List<StatModifier>();
+		private List<StatModifier> _modifiers;
 
 		#endregion
 
@@ -40,12 +38,13 @@ namespace DeiveEx.StatSystem
 				float oldValue = _baseValue;
 				_baseValue = value;
 				RecalculateCurrentValue();
-				onBaseValueChanged?.Invoke(this, new StatChangedEventArgs()
+				
+				OnBaseValueChanged?.Invoke(this, new StatChangedEventArgs()
 				{
-					id = Name,
-					stat = this,
-					oldBaseValue = oldValue,
-					newBaseValue = _baseValue
+					ID = Name,
+					Stat = this,
+					OldBaseValue = oldValue,
+					NewBaseValue = _baseValue
 				});
 			}
 		}
@@ -58,31 +57,36 @@ namespace DeiveEx.StatSystem
 
 		#region Events & Delegates
 
-		public event EventHandler<StatChangedEventArgs> onBaseValueChanged;
-		public event EventHandler<StatChangedEventArgs> onModifierAdded;
-		public event EventHandler<StatChangedEventArgs> onModifierRemoved;
+		public event EventHandler<StatChangedEventArgs> OnBaseValueChanged;
+		public event EventHandler<StatChangedEventArgs> OnModifierAdded;
+		public event EventHandler<StatChangedEventArgs> OnModifierRemoved;
+
+		#endregion
+		
+		#region Constructors
+
+		public Stat(string name, float baseValue)
+		{
+			_name = name;
+			_baseValue = baseValue;
+			_currentValue = baseValue;
+			_modifiers = new();
+		}
 
 		#endregion
 
 		#region Public Methods
 
-		public Stat(string name, float baseValue)
-		{
-			this._name = name;
-			this._baseValue = baseValue;
-			_currentValue = baseValue;
-		}
-
 		public void AddModifier(StatModifier modifier)
 		{
 			_modifiers.Add(modifier);
 			RecalculateCurrentValue();
-			onModifierAdded?.Invoke(this, new StatChangedEventArgs()
+			OnModifierAdded?.Invoke(this, new StatChangedEventArgs()
 			{
-				id = Name,
-				stat = this,
-				oldBaseValue = _baseValue,
-				newBaseValue = _baseValue
+				ID = Name,
+				Stat = this,
+				OldBaseValue = _baseValue,
+				NewBaseValue = _baseValue
 			});
 		}
 
@@ -104,12 +108,12 @@ namespace DeiveEx.StatSystem
 				//Only recalculate if we actually removed anything
 				RecalculateCurrentValue();
 				
-				onModifierRemoved?.Invoke(this, new StatChangedEventArgs()
+				OnModifierRemoved?.Invoke(this, new StatChangedEventArgs()
 				{
-					id = Name,
-					stat = this,
-					oldBaseValue = _baseValue,
-					newBaseValue = _baseValue
+					ID = Name,
+					Stat = this,
+					OldBaseValue = _baseValue,
+					NewBaseValue = _baseValue
 				});
 			}
 		}
