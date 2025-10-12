@@ -6,8 +6,15 @@ namespace DeiveEx.StatSystem.Editor
     [CustomEditor(typeof(StatsContainerComponent))]
     public class StatsContainerComponentCustomInspector : UnityEditor.Editor
     {
+        private const string FOLDOUT_STATE_KEY = "StatsComponentComponent_Foldout";
+        
         private StatsContainerComponent _instance;
-        private static bool _foldout = true;
+        
+        private bool IsFoldoutOpen
+        {
+            get => SessionState.GetBool(FOLDOUT_STATE_KEY, false);
+            set => SessionState.SetBool(FOLDOUT_STATE_KEY, value);
+        }
 
         private void OnEnable()
         {
@@ -38,9 +45,9 @@ namespace DeiveEx.StatSystem.Editor
             DrawDefaultInspector();
             
             //Extending to show extra info
-            _foldout = EditorGUILayout.BeginFoldoutHeaderGroup(_foldout, "Inspect Stats");
+            IsFoldoutOpen = EditorGUILayout.BeginFoldoutHeaderGroup(IsFoldoutOpen, "Inspect Stats");
             
-            if (_foldout)
+            if (IsFoldoutOpen)
             {
                 using (new EditorGUI.DisabledScope(true))
                 {
