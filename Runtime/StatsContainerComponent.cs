@@ -36,9 +36,9 @@ namespace DeiveEx.StatSystem
                 throw new InvalidOperationException($"A {nameof(StatsContainer)} with ID [{container.Id}] already exists!");
 
             _statsContainers.Add(container.Id, container);
-            container.onStatBaseValueChanged += Container_OnStatBaseValueChanged;
-            container.onModifierAdded += Container_OnModifierAdded;
-            container.onModifierRemoved += Container_OnModifierRemoved;
+            container.StatBaseValueChanged += ContainerStatBaseValueChanged;
+            container.ModifierAdded += ContainerModifierAdded;
+            container.ModifierRemoved += ContainerModifierRemoved;
         }
 
         public void RemoveStatsContainer(string containerID)
@@ -47,9 +47,9 @@ namespace DeiveEx.StatSystem
                 return;
 
             var container = _statsContainers[containerID];
-            container.onStatBaseValueChanged -= Container_OnStatBaseValueChanged;
-            container.onModifierAdded -= Container_OnModifierAdded;
-            container.onModifierRemoved -= Container_OnModifierRemoved;
+            container.StatBaseValueChanged -= ContainerStatBaseValueChanged;
+            container.ModifierAdded -= ContainerModifierAdded;
+            container.ModifierRemoved -= ContainerModifierRemoved;
             
             _statsContainers.Remove(containerID);
         }
@@ -86,17 +86,17 @@ namespace DeiveEx.StatSystem
         
         #region Private Methods
 
-        private void Container_OnStatBaseValueChanged(object sender, StatChangedEventArgs e)
+        private void ContainerStatBaseValueChanged(object sender, StatChangedEventArgs e)
         {
             onStatBaseValueChanged?.Invoke(this, e);
         }
         
-        private void Container_OnModifierRemoved(object sender, StatChangedEventArgs e)
+        private void ContainerModifierRemoved(object sender, StatChangedEventArgs e)
         {
             onModifierAdded?.Invoke(this, e);
         }
 
-        private void Container_OnModifierAdded(object sender, StatChangedEventArgs e)
+        private void ContainerModifierAdded(object sender, StatChangedEventArgs e)
         {
             onModifierRemoved?.Invoke(this, e);
         }

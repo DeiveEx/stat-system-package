@@ -23,9 +23,9 @@ namespace DeiveEx.StatSystem.Editor
             foreach (var containerId in _instance.ContainerIds)
             {
                 var container = _instance.GetStatsContainer(containerId);
-                container.onStatBaseValueChanged += UpdateUI;
-                container.onModifierAdded += UpdateUI;
-                container.onModifierRemoved += UpdateUI;
+                container.StatBaseValueChanged += UpdateUI;
+                container.ModifierAdded += UpdateUI;
+                container.ModifierRemoved += UpdateUI;
             }
         }
         
@@ -34,9 +34,9 @@ namespace DeiveEx.StatSystem.Editor
             foreach (var containerId in _instance.ContainerIds)
             {
                 var container = _instance.GetStatsContainer(containerId);
-                container.onStatBaseValueChanged -= UpdateUI;
-                container.onModifierAdded -= UpdateUI;
-                container.onModifierRemoved -= UpdateUI;
+                container.StatBaseValueChanged -= UpdateUI;
+                container.ModifierAdded -= UpdateUI;
+                container.ModifierRemoved -= UpdateUI;
             }
         }
 
@@ -73,7 +73,7 @@ namespace DeiveEx.StatSystem.Editor
                     EditorGUILayout.BeginHorizontal();
                     
                     EditorGUILayout.PrefixLabel(stat.Name);
-                    EditorGUILayout.LabelField($"Current: {container.GetStatCurrentValue(stat.Name)} (Base: {container.GetStatBaseValue(stat.Name)})");
+                    EditorGUILayout.LabelField($"Current: {container.GetStat(stat.Name)} (Base: {container.GetStatBaseValue(stat.Name)})");
                     
                     EditorGUILayout.EndHorizontal();
                 }

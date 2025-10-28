@@ -48,7 +48,7 @@ namespace DeiveEx.StatSystem.EditorTests
 			Assert.IsNotNull(_statsContainer);
 			Assert.IsNotNull(_statsContainer.StatExists(STAT_NAME));
 			Assert.AreEqual(_statsContainer.GetStatBaseValue(STAT_NAME), 100);
-			Assert.AreEqual(_statsContainer.GetStatCurrentValue(STAT_NAME), 100);
+			Assert.AreEqual(_statsContainer.GetStat(STAT_NAME), 100);
 		}
 
 		[Test]
@@ -230,11 +230,11 @@ namespace DeiveEx.StatSystem.EditorTests
 			int baseChanged = 0;
 			int modifierChanged = 0;
 
-			_testStat.OnBaseValueChanged += (sender, e) => { baseChanged++; };
+			_testStat.BaseValueChanged += (sender, e) => { baseChanged++; };
 
-			_testStat.OnModifierAdded += (sender, e) => { modifierChanged++; };
+			_testStat.ModifierAdded += (sender, e) => { modifierChanged++; };
 
-			_testStat.OnModifierRemoved += (sender, e) => { modifierChanged--; };
+			_testStat.ModifierRemoved += (sender, e) => { modifierChanged--; };
 
 			_testStat.BaseValue = 1;
 			Assert.AreEqual(baseChanged, 1);
@@ -259,11 +259,11 @@ namespace DeiveEx.StatSystem.EditorTests
 			StatBaseValueChangeHandler testHandler = new StatBaseValueChangeHandler(STAT_NAME, (targetState, targetValue, container) => { return Mathf.Max(targetValue, 0); });
 
 			_statsContainer.RegisterBaseValueHandler(testHandler);
-			_statsContainer.SetStatBaseValue(STAT_NAME, value);
+			_statsContainer.SetStat(STAT_NAME, value);
 			Assert.AreEqual(_statsContainer.GetStatBaseValue(STAT_NAME), Mathf.Max(value, 0));
 
 			_statsContainer.UnregisterBaseValueHandler(STAT_NAME);
-			_statsContainer.SetStatBaseValue(STAT_NAME, value);
+			_statsContainer.SetStat(STAT_NAME, value);
 			Assert.AreEqual(_statsContainer.GetStatBaseValue(STAT_NAME), value);
 		}
 	}

@@ -8,8 +8,8 @@ namespace DeiveEx.StatSystem
 	{
 		public string ID;
 		public Stat Stat;
-		public float OldBaseValue;
-		public float NewBaseValue;
+		public float OldValue;
+		public float NewValue;
 	}
 	
 	public class Stat
@@ -39,12 +39,12 @@ namespace DeiveEx.StatSystem
 				_baseValue = value;
 				RecalculateCurrentValue();
 				
-				OnBaseValueChanged?.Invoke(this, new StatChangedEventArgs()
+				BaseValueChanged?.Invoke(this, new StatChangedEventArgs()
 				{
 					ID = Name,
 					Stat = this,
-					OldBaseValue = oldValue,
-					NewBaseValue = _baseValue
+					OldValue = oldValue,
+					NewValue = _baseValue
 				});
 			}
 		}
@@ -57,9 +57,9 @@ namespace DeiveEx.StatSystem
 
 		#region Events & Delegates
 
-		public event EventHandler<StatChangedEventArgs> OnBaseValueChanged;
-		public event EventHandler<StatChangedEventArgs> OnModifierAdded;
-		public event EventHandler<StatChangedEventArgs> OnModifierRemoved;
+		public event EventHandler<StatChangedEventArgs> BaseValueChanged;
+		public event EventHandler<StatChangedEventArgs> ModifierAdded;
+		public event EventHandler<StatChangedEventArgs> ModifierRemoved;
 
 		#endregion
 		
@@ -81,41 +81,39 @@ namespace DeiveEx.StatSystem
 		{
 			_modifiers.Add(modifier);
 			RecalculateCurrentValue();
-			OnModifierAdded?.Invoke(this, new StatChangedEventArgs()
+			ModifierAdded?.Invoke(this, new StatChangedEventArgs()
 			{
 				ID = Name,
 				Stat = this,
-				OldBaseValue = _baseValue,
-				NewBaseValue = _baseValue
+				OldValue = _baseValue,
+				NewValue = _baseValue
 			});
 		}
 
-		public void RemoveModifier(string id, bool removeAll = false)
+		public bool RemoveModifier(string id, bool removeAll = false)
 		{
 			var firstModifier = _modifiers.FirstOrDefault(x => x.id == id);
 
-			if (firstModifier != null)
-			{
-				if (removeAll)
-				{
-					_modifiers = _modifiers.Where(x => x.id != id).ToList();
-				}
-				else
-				{
-					_modifiers.Remove(firstModifier);
-				}
+			if (firstModifier == null)
+				return false;
+			
+			if (removeAll)
+				_modifiers = _modifiers.Where(x => x.id != id).ToList();
+			else
+				_modifiers.Remove(firstModifier);
 
-				//Only recalculate if we actually removed anything
-				RecalculateCurrentValue();
+			//Only recalculate if we actually removed anything
+			RecalculateCurrentValue();
 				
-				OnModifierRemoved?.Invoke(this, new StatChangedEventArgs()
-				{
-					ID = Name,
-					Stat = this,
-					OldBaseValue = _baseValue,
-					NewBaseValue = _baseValue
-				});
-			}
+			ModifierRemoved?.Invoke(this, new StatChangedEventArgs()
+			{
+				ID = Name,
+				Stat = this,
+				OldValue = _baseValue,
+				NewValue = _baseValue
+			});
+
+			return true;
 		}
 
 		#endregion
@@ -129,22 +127,22 @@ namespace DeiveEx.StatSystem
 			if (_modifiers.Count == 0)
 				return;
 
-			//First we check if we have any override modifiers. If we do, we skip the other calculations since it makes no sense to calculate anything else if it's gonna be overriden
-			if (!CalculateOverride())
-			{
-				//We first apply all additive modifiers
-				float additive = CalculateAdditive();
+			//First, we check if we have any override modifiers. If we do, we skip the other calculations since it makes no sense to calculate anything else if it's gonna be overriden
+			if (CalculateOverride()) 
+				return;
+			
+			//If no override modifier was found, we first apply all additive modifiers
+			float additive = CalculateAdditive();
 
-				//After that, we apply all multiplicative modifiers
-				float multiplicative = CalculateMultiplicative();
+			//After that, we apply all multiplicative modifiers
+			float multiplicative = CalculateMultiplicative();
 
-				//Apply the calculation
-				_currentValue = _baseValue + additive;
-				_currentValue += _currentValue * multiplicative;
+			//Apply the calculation
+			_currentValue = _baseValue + additive;
+			_currentValue += _currentValue * multiplicative;
 
-				//If there's any custom calculations, we apply after everything else
-				_currentValue = CalculateCustom();
-			}
+			//If there are any custom calculations, we apply after everything else
+			_currentValue = CalculateCustom();
 		}
 
 		private float CalculateAdditive()

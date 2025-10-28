@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using UnityEngine;
 
@@ -12,10 +11,11 @@ namespace DeiveEx.StatSystem
 
 		public const string DEFAULT_CONTAINER_ID = "DefaultStats";
 		
+		private static StringBuilder _sb = new ();
+		
 		private string _id;
 		private Dictionary<string, Stat> _stats = new();
 		private Dictionary<string, StatBaseValueChangeHandler> _statBaseValueChangeHandlers = new();
-		private Dictionary<string, StatBaseValueChangeHandler> _statCurrentValueChangeHandlers = new();
 		
 		#endregion
 		
@@ -28,13 +28,13 @@ namespace DeiveEx.StatSystem
 
 		#region Events & Delegates
 
-		public event EventHandler<StatChangedEventArgs> onStatBaseValueChanged;
-		public event EventHandler<StatChangedEventArgs> onModifierAdded;
-		public event EventHandler<StatChangedEventArgs> onModifierRemoved;
+		public event EventHandler<StatChangedEventArgs> StatBaseValueChanged;
+		public event EventHandler<StatChangedEventArgs> ModifierAdded;
+		public event EventHandler<StatChangedEventArgs> ModifierRemoved;
 
 		#endregion
 		
-		#region Public Methods
+		#region Constructors
 
 		public StatsContainer(string id = null)
 		{
@@ -43,7 +43,11 @@ namespace DeiveEx.StatSystem
 			
 			_id = id;
 		}
+		
+		#endregion
 
+		#region Public Methods
+		
 		/// <summary>
 		/// Adds a Stat to the stat container so you can get/set its value
 		/// </summary>
@@ -55,9 +59,9 @@ namespace DeiveEx.StatSystem
 			if (StatExists(newStat.Name))
 				throw new InvalidOperationException($"A stat with the name [{newStat.Name}] was already added to the stat list");
 
-			newStat.OnBaseValueChanged += Stat_OnBaseValueChanged;
-			newStat.OnModifierAdded += Stat_OnModifierAdded;
-			newStat.OnModifierRemoved += Stat_OnModifierRemoved;
+			newStat.BaseValueChanged += OnStatBaseValueChanged;
+			newStat.ModifierAdded += OnStatModifierAdded;
+			newStat.ModifierRemoved += OnStatModifierRemoved;
 
 			_stats.Add(newStat.Name, newStat);
 		}
@@ -72,7 +76,7 @@ namespace DeiveEx.StatSystem
 			if (!StatExists(statID))
 				AddStat(new Stat(statID, value));
 			
-			SetStatBaseValue(statID, value);
+			SetStat(statID, value);
 		}
 		
 		/// <summary>
@@ -100,14 +104,14 @@ namespace DeiveEx.StatSystem
 		/// <summary>
 		/// Get the base value of the stat. The base value is the value before any modifiers are applied.
 		/// <para>
-		/// You should only call this in specific situations. Call <see cref="GetStatCurrentValue"/> for more common uses (like checking the character attack or HP).
+		/// You should only call this in specific situations. Call <see cref="GetStat"/> for more common uses (like checking the character attack or HP).
 		/// </para>
 		/// </summary>
 		/// <param name="statKey">The stat to get the base value from</param>
 		/// <returns>The Stat base value</returns>
 		public float GetStatBaseValue(string statKey)
 		{
-			return GetStat(statKey).BaseValue;
+			return GetStatReference(statKey).BaseValue;
 		}
 
 		/// <summary>
@@ -115,21 +119,21 @@ namespace DeiveEx.StatSystem
 		/// </summary>
 		/// <param name="statKey">The stat to get the current value from</param>
 		/// <returns>The stat current value</returns>
-		public float GetStatCurrentValue(string statKey)
+		public float GetStat(string statKey)
 		{
-			Stat stat = GetStat(statKey);
+			Stat stat = GetStatReference(statKey);
 			return stat.CurrentValue;
 		}
 
 		/// <summary>
-		/// Set the stat base value.
+		/// Set the stat base value and recalculates the current value if any modifier is applied.
 		/// </summary>
 		/// <param name="statKey">The stat to set the value of</param>
 		/// <param name="value">The value to be set</param>
 		/// <param name="bypassStatHandler">Should the stat handler be skipped? The stat handler can process the value before setting it</param>
-		public void SetStatBaseValue(string statKey, float value, bool bypassStatHandler = false)
+		public void SetStat(string statKey, float value, bool bypassStatHandler = false)
 		{
-			Stat stat = GetStat(statKey);
+			Stat stat = GetStatReference(statKey);
 
 			//Check if we have a custom handler for this stat
 			if (!bypassStatHandler && _statBaseValueChangeHandlers.TryGetValue(statKey, out StatBaseValueChangeHandler handler))
@@ -149,10 +153,10 @@ namespace DeiveEx.StatSystem
 		/// <param name="statKey">The stat to set teh value of</param>
 		/// <param name="value">The value to be added</param>
 		/// <param name="bypassStatHandler">Should the stat handler be skipped? The stat handler can process the value before setting it</param>
-		public void AddToStatBaseValue(string statKey, float value, bool bypassStatHandler = false)
+		public void AddToStat(string statKey, float value, bool bypassStatHandler = false)
 		{
-			var currentValue = GetStatCurrentValue(statKey);
-			SetStatBaseValue(statKey, currentValue + value, bypassStatHandler);
+			var currentValue = GetStat(statKey);
+			SetStat(statKey, currentValue + value, bypassStatHandler);
 		}
 
 		/// <summary>
@@ -176,15 +180,15 @@ namespace DeiveEx.StatSystem
 		/// </summary>
 		/// <param name="statKey">The stat to remove the modifier from</param>
 		/// <param name="id">The ID of the modifier</param>
-		public void RemoveModifier(string statKey, string id)
+		public bool RemoveModifier(string statKey, string id)
 		{
 			if (!StatExists(statKey))
 			{
 				Debug.LogWarning($"Trying to remove a modifier from stat [{statKey}], which doesnt exist in the target {nameof(StatsContainer)}");
-				return;
+				return false;
 			}
 			
-			_stats[statKey].RemoveModifier(id);
+			return _stats[statKey].RemoveModifier(id);
 		}
 
 		/// <summary>
@@ -194,10 +198,8 @@ namespace DeiveEx.StatSystem
 		/// <param name="handler">The handler object that will modify the stat value</param>
 		public void RegisterBaseValueHandler(StatBaseValueChangeHandler handler)
 		{
-			if (_statBaseValueChangeHandlers.ContainsKey(handler.TargetStat))
+			if (!_statBaseValueChangeHandlers.TryAdd(handler.TargetStat, handler))
 				throw new InvalidOperationException($"A handler for the base value of the stat with ID [{handler.TargetStat}] already exists. Only one handler per stat is allowed.");
-
-			_statBaseValueChangeHandlers.Add(handler.TargetStat, handler);
 		}
 
 		/// <summary>
@@ -206,48 +208,21 @@ namespace DeiveEx.StatSystem
 		/// <param name="targetStat">The id of the Handler to remove</param>
 		public void UnregisterBaseValueHandler(string targetStat)
 		{
-			if (!_statBaseValueChangeHandlers.ContainsKey(targetStat))
-				return;
-
 			_statBaseValueChangeHandlers.Remove(targetStat);
-		}
-
-		/// <summary>
-		/// Register a handler that can modify the stat value <b>AFTER</b> all modifiers are applied to the base stat value.
-		/// <para>One good use of this is for clamping.</para>
-		/// </summary>
-		/// <param name="handler">The handler object that will modify the stat value</param>
-		public void RegisterCurrentValueHandler(StatBaseValueChangeHandler handler)
-		{
-			if (_statCurrentValueChangeHandlers.ContainsKey(handler.TargetStat))
-				throw new InvalidOperationException($"A handler for the stat with ID [{handler.TargetStat}] already exists. Only one handler per stat is allowed.");
-
-			_statCurrentValueChangeHandlers.Add(handler.TargetStat, handler);
-		}
-
-		/// <summary>
-		/// Unregister a Stat Current Value handler
-		/// </summary>
-		/// <param name="targetStat">The id of the Handler to remove</param>
-		public void UnregisterCurrentValueHandler(string targetStat)
-		{
-			if (!_statCurrentValueChangeHandlers.ContainsKey(targetStat))
-				return;
-
-			_statCurrentValueChangeHandlers.Remove(targetStat);
 		}
 
 		public string GetDebugInfo()
 		{
-			StringBuilder sb = new StringBuilder($"= [STATS<{_id}>]");
-			sb.Append("\n");
+			_sb.Clear();
+			_sb.AppendLine($"= [STATS<{_id}>]");
+			_sb.Append("\n");
 
 			foreach (var stat in _stats.Values)
 			{
-				sb.Append($"- {stat.Name}: {stat.CurrentValue} (Base: {stat.BaseValue})").Append("\n");
+				_sb.Append($"- {stat.Name}: {stat.CurrentValue} (Base: {stat.BaseValue})").Append("\n");
 			}
 
-			return sb.ToString();
+			return _sb.ToString();
 		}
 
 		public StatsContainerState GetState()
@@ -282,7 +257,7 @@ namespace DeiveEx.StatSystem
 		
 		#region Private Methods
 
-		private Stat GetStat(string statKey)
+		private Stat GetStatReference(string statKey)
 		{
 			if (!StatExists(statKey))
 				throw new NullReferenceException($"This container does not have a stat with the statKey [{statKey}]");
@@ -290,21 +265,10 @@ namespace DeiveEx.StatSystem
 			return _stats[statKey];
 		}
 		
-		private void Stat_OnBaseValueChanged(object sender, StatChangedEventArgs e)
-		{
-			onStatBaseValueChanged?.Invoke(this, e);
-		}
-		
-		private void Stat_OnModifierAdded(object sender, StatChangedEventArgs e)
-		{
-			onModifierAdded?.Invoke(this, e);
-		}
+		private void OnStatBaseValueChanged(object sender, StatChangedEventArgs e) => StatBaseValueChanged?.Invoke(this, e);
+		private void OnStatModifierAdded(object sender, StatChangedEventArgs e) => ModifierAdded?.Invoke(this, e);
+		private void OnStatModifierRemoved(object sender, StatChangedEventArgs e) => ModifierRemoved?.Invoke(this, e);
 
-		private void Stat_OnModifierRemoved(object sender, StatChangedEventArgs e)
-		{
-			onModifierRemoved?.Invoke(this, e);
-		}
-		
 		#endregion
 	}
 }
