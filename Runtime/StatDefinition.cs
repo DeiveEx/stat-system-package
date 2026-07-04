@@ -51,9 +51,9 @@ namespace DeiveEx.StatSystem
 		public bool RemoveModifier(string id, bool removeAll = false)
 		{
 			if (removeAll)
-				return _modifiers.RemoveAll(x => x.id == id) > 0;
+				return _modifiers.RemoveAll(x => x.ID == id) > 0;
 			
-			var firstModifier = _modifiers.FirstOrDefault(x => x.id == id);
+			var firstModifier = _modifiers.FirstOrDefault(x => x.ID == id);
 			
 			return firstModifier != null && 
 			       _modifiers.Remove(firstModifier);

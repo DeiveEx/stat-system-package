@@ -142,11 +142,12 @@ namespace DeiveEx.StatSystem
 		/// </summary>
 		/// <param name="statKey">The stat to remove the modifier from</param>
 		/// <param name="id">The ID of the modifier</param>
-		public bool RemoveModifier(T statKey, string id)
+		/// <param name="removeAll">Should all modifiers with the same ID be removed? If false, only the first applied one will be removed</param>
+		public bool RemoveModifier(T statKey, string id, bool removeAll = false)
 		{
 			var stat = GetStatDefinition(statKey);
 			
-			if (!stat.RemoveModifier(id)) 
+			if (!stat.RemoveModifier(id, removeAll)) 
 				return false;
 			
 			ResolveStatCurrentValue(statKey, stat);
