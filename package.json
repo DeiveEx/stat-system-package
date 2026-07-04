@@ -1,6 +1,6 @@
 {
   "name": "com.deiveex.stat-system",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "displayName": "DeiveEx - Stat System",
   "description": "A dynamic stat system for unity",
   "unity": "2022.3",
