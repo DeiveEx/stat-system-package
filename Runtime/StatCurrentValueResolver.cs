@@ -14,8 +14,8 @@ namespace DeiveEx.StatSystem
                 return currentValue;
 
             //First, we check if we have any override modifiers. If we do, we skip the other calculations since it makes no sense to calculate anything else if it's gonna be overriden
-            if (CalculateOverride(modifiers, out currentValue)) 
-                return currentValue;
+            if (CalculateOverride(modifiers, out var overridenValue)) 
+                return overridenValue;
 			
             //If no override modifier was found, we first apply all additive modifiers
             float additive = CalculateAdditive(modifiers);
@@ -37,12 +37,10 @@ namespace DeiveEx.StatSystem
         {
             float totalValue = 0;
 
-            var additiveModifiers = modifiers.Where(x => x.OperationType == OperationType.Additive);
+            var additiveModifiers = modifiers.OfType<AdditiveModifier>();
 
             foreach (var modifier in additiveModifiers)
-            {
-                totalValue += modifier.Magnitude;
-            }
+                totalValue += modifier.Value;
 
             return totalValue;
         }
@@ -51,42 +49,38 @@ namespace DeiveEx.StatSystem
         {
             float totalValue = 0;
 
-            var multiplicativeModifiers = modifiers.Where(x => x.OperationType == OperationType.Multiplicative);
+            var multiplicativeModifiers = modifiers.OfType<MultiplicativeModifier>();
 
             foreach (var modifier in multiplicativeModifiers)
-            {
-                totalValue += modifier.Magnitude;
-            }
+                totalValue += modifier.Value;
 
             return totalValue;
         }
 
-        private bool CalculateOverride(ICollection<StatModifier> modifiers, out float currentValue)
+        private bool CalculateOverride(ICollection<StatModifier> modifiers, out float overridenValue)
         {
-            var overrideModifiers = modifiers.Where(x => x.OperationType == OperationType.Override).ToArray();
+            var highestPriorityOverride = modifiers.OfType<OverrideModifier>()
+                .OrderByDescending(x => x.Priority)
+                .FirstOrDefault();
 
-            //Check if we have any override modifier
-            if (overrideModifiers.Length == 0)
+            if (highestPriorityOverride == null)
             {
-                currentValue = 0;
+                overridenValue = 0;
                 return false;
             }
             
             //If we do, we get the one with the highest priority and return that
-            StatModifier highestPriorityOverride = overrideModifiers.Aggregate((x, y) => x.Priority > y.Priority ? x : y); //"Aggregate" gets 2 items, execute some operation and uses the resulting value as the 1st item in the next operation
-            currentValue = highestPriorityOverride.Magnitude;
+            overridenValue = highestPriorityOverride.Value;
             return true;
         }
 
         private float CalculateCustom(ICollection<StatModifier> modifiers, float currentValue, float baseValue)
         {
             float value = currentValue;
-            var customModifiers = modifiers.Where(x => x.OperationType == OperationType.Custom);
+            var customModifiers = modifiers.OfType<CustomCalculationModifier>();
 
             foreach (var modifier in customModifiers)
-            {
-                value = modifier.CustomCalculation(baseValue, value);
-            }
+                value = modifier.Calculation(baseValue, value);
 
             return value;
         }

@@ -77,7 +77,7 @@ namespace DeiveEx.StatSystem.EditorTests
 
 			for (int i = 0; i < magnitudes.Length; i++)
 			{
-				StatModifier modifier = new StatModifier(id + i, OperationType.Additive, magnitudes[i]);
+				StatModifier modifier = new AdditiveModifier(id + i, magnitudes[i]);
 				_statsContainer.ApplyModifier(TestStat.A, modifier);
 				total += magnitudes[i];
 			}
@@ -107,7 +107,7 @@ namespace DeiveEx.StatSystem.EditorTests
 
 			for (int i = 0; i < magnitudes.Length; i++)
 			{
-				StatModifier modifier = new StatModifier(id + i, OperationType.Multiplicative, magnitudes[i]);
+				StatModifier modifier = new MultiplicativeModifier(id + i, magnitudes[i]);
 				_statsContainer.ApplyModifier(TestStat.A, modifier);
 				total += magnitudes[i];
 			}
@@ -136,7 +136,7 @@ namespace DeiveEx.StatSystem.EditorTests
 
 			for (int i = 0; i < magnitudesOrderedByPriority.Length; i++)
 			{
-				StatModifier modifier = new StatModifier(id + i, OperationType.Override, magnitudesOrderedByPriority[i], i);
+				StatModifier modifier = new OverrideModifier(id + i, magnitudesOrderedByPriority[i], i);
 				_statsContainer.ApplyModifier(TestStat.A, modifier);
 			}
 
@@ -160,9 +160,9 @@ namespace DeiveEx.StatSystem.EditorTests
 			string id = "test";
 			float expectedValue = 0;
 
-			StatModifier addModifier = new StatModifier(id + 0, OperationType.Additive, additiveMagnitude);
-			StatModifier multModifier = new StatModifier(id + 1, OperationType.Multiplicative, multiplicativeMagnitude);
-			StatModifier overrideModifier = new StatModifier(id + 2, OperationType.Override, overrideMagnitude);
+			StatModifier addModifier = new AdditiveModifier(id + 0, additiveMagnitude);
+			StatModifier multModifier = new MultiplicativeModifier(id + 1, multiplicativeMagnitude);
+			StatModifier overrideModifier = new OverrideModifier(id + 2, overrideMagnitude);
 
 			_statsContainer.ApplyModifier(TestStat.A, addModifier);
 			expectedValue = initialValue + additiveMagnitude;
@@ -187,7 +187,7 @@ namespace DeiveEx.StatSystem.EditorTests
 		[Test]
 		public void Custom_Modifier_Applied_Correctly()
 		{
-			StatModifier modifier = new StatModifier("test", OperationType.Custom, 0, 0, (baseValue, currentValue) => { return baseValue / 2f; });
+			StatModifier modifier = new CustomCalculationModifier("test", (baseValue, currentValue) => baseValue / 2f);
 
 			_statsContainer.ApplyModifier(TestStat.A, modifier);
 			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), _statsContainer.GetStatBaseValue(TestStat.A) / 2f);
@@ -196,7 +196,7 @@ namespace DeiveEx.StatSystem.EditorTests
 		[Test]
 		public void Is_Single_Modifier_Correctly_Removed()
 		{
-			StatModifier modifier = new StatModifier("test", OperationType.Additive, 1);
+			StatModifier modifier = new AdditiveModifier("test", 1);
 
 			_statsContainer.ApplyModifier(TestStat.A, modifier);
 			_statsContainer.ApplyModifier(TestStat.A, modifier);
@@ -211,7 +211,7 @@ namespace DeiveEx.StatSystem.EditorTests
 		[Test]
 		public void Is_Multiple_Modifiers_Correctly_Removed()
 		{
-			StatModifier modifier = new StatModifier("test", OperationType.Additive, 1);
+			StatModifier modifier = new AdditiveModifier("test", 1);
 
 			_statsContainer.ApplyModifier(TestStat.A, modifier);
 			_statsContainer.ApplyModifier(TestStat.A, modifier);
@@ -242,7 +242,7 @@ namespace DeiveEx.StatSystem.EditorTests
 			Assert.AreEqual(baseChanged, 1);
 			Assert.AreEqual(modifierChanged, 0);
 
-			StatModifier modifier = new StatModifier("test", OperationType.Additive, 10);
+			StatModifier modifier = new AdditiveModifier("test", 10);
 			_statsContainer.ApplyModifier(TestStat.A, modifier);
 
 			Assert.AreEqual(modifierChanged, 1);
