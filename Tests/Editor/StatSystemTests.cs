@@ -5,31 +5,22 @@ using UnityEngine;
 namespace DeiveEx.StatSystem.EditorTests
 {
 	[Category("StatsSystem")]
-
 	public class StatSystemTests
 	{
-		private Stat _testStat;
-		private StatsContainer _statsContainer;
-
-		private const string STAT_NAME = "testStat";
+		private enum TestStat
+		{
+			A,
+			B,
+		}
+		
+		private StatsContainer<TestStat> _statsContainer;
 
 		//Setup methods are executed before each test
 		[SetUp]
 		public void Setup()
 		{
-			_testStat = new Stat(STAT_NAME, 100);
-
-			var initialStats = new List<Stat>()
-			{
-				_testStat
-			};
-
-			_statsContainer = new StatsContainer("testID");
-
-			foreach (var stat in initialStats)
-			{
-				_statsContainer.AddStat(stat);
-			}
+			_statsContainer = new StatsContainer<TestStat>(new StatCurrentValueResolver<TestStat>(), "testID");
+			_statsContainer.AddStat(TestStat.A, 100);
 		}
 
 		//TearDown methods are executed after each test
@@ -39,31 +30,36 @@ namespace DeiveEx.StatSystem.EditorTests
 		[Test]
 		public void TestStat_was_created_correctly()
 		{
-			Assert.AreEqual(_testStat.BaseValue, 100);
+			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), 100);
 		}
 
 		[Test]
 		public void StatsContainer_Created_Correctly()
 		{
 			Assert.IsNotNull(_statsContainer);
-			Assert.IsNotNull(_statsContainer.StatExists(STAT_NAME));
-			Assert.AreEqual(_statsContainer.GetStatBaseValue(STAT_NAME), 100);
-			Assert.AreEqual(_statsContainer.GetStat(STAT_NAME), 100);
+			
+			Assert.IsTrue(_statsContainer.StatExists(TestStat.A));
+			Assert.AreEqual(_statsContainer.GetStatBaseValue(TestStat.A), 100);
+			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), 100);
+			
+			Assert.IsFalse(_statsContainer.StatExists(TestStat.B));
 		}
 
 		[Test]
+		[TestCase(0)]
 		[TestCase(5)]
 		[TestCase(-10)]
 		public void Stat_Value_is_correctly_changed(float value)
 		{
-			_testStat.BaseValue = value;
-			Assert.AreEqual(_testStat.BaseValue, value);
+			_statsContainer.SetStat(TestStat.A, value);
+			Assert.AreEqual(_statsContainer.GetStatBaseValue(TestStat.A), value);
+			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), value);
 		}
 
 		[Test]
 		public void Is_BaseValue_and_Value_Equal_Without_Modifiers()
 		{
-			Assert.AreEqual(_testStat.BaseValue, _testStat.CurrentValue);
+			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), _statsContainer.GetStatBaseValue(TestStat.A));
 		}
 
 		[Test]
@@ -75,25 +71,25 @@ namespace DeiveEx.StatSystem.EditorTests
 		[TestCase(10, 50, -30)]
 		public void Is_Value_Correctly_Affected_By_Additive_Modifiers(params float[] magnitudes)
 		{
-			float initialValue = _testStat.CurrentValue;
-			string id = "test";
+			float initialValue = _statsContainer.GetStat(TestStat.A);
+			string id = "testModifier";
 			float total = initialValue;
 
 			for (int i = 0; i < magnitudes.Length; i++)
 			{
 				StatModifier modifier = new StatModifier(id + i, OperationType.Additive, magnitudes[i]);
-				_testStat.AddModifier(modifier);
+				_statsContainer.ApplyModifier(TestStat.A, modifier);
 				total += magnitudes[i];
 			}
 
-			Assert.AreEqual(_testStat.CurrentValue, total);
+			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), total);
 
 			for (int i = 0; i < magnitudes.Length; i++)
 			{
-				_testStat.RemoveModifier(id + i);
+				_statsContainer.RemoveModifier(TestStat.A, id + i);
 			}
 
-			Assert.AreEqual(_testStat.CurrentValue, initialValue);
+			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), initialValue);
 		}
 
 		[Test]
@@ -105,23 +101,26 @@ namespace DeiveEx.StatSystem.EditorTests
 		[TestCase(.3f, .3f, -.1f)]
 		public void Is_Value_Correctly_Affected_By_Multiplicative_Modifiers(params float[] magnitudes)
 		{
-			float initialValue = _testStat.CurrentValue;
-			string id = "test";
+			float initialValue = _statsContainer.GetStat(TestStat.A);
+			string id = "testModifier";
 			float total = 0;
 
 			for (int i = 0; i < magnitudes.Length; i++)
 			{
 				StatModifier modifier = new StatModifier(id + i, OperationType.Multiplicative, magnitudes[i]);
-				_testStat.AddModifier(modifier);
+				_statsContainer.ApplyModifier(TestStat.A, modifier);
 				total += magnitudes[i];
 			}
+			
+			var expectedResult = initialValue + (initialValue * total);
+			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), expectedResult);
 
 			for (int i = 0; i < magnitudes.Length; i++)
 			{
-				_testStat.RemoveModifier(id + i);
+				_statsContainer.RemoveModifier(TestStat.A, id + i);
 			}
 
-			Assert.AreEqual(_testStat.CurrentValue, initialValue);
+			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), initialValue);
 		}
 
 		[Test]
@@ -131,24 +130,24 @@ namespace DeiveEx.StatSystem.EditorTests
 		[TestCase(1000, 50, 1)]
 		public void Is_Value_Correctly_Affected_By_Override_Modifiers(params float[] magnitudesOrderedByPriority)
 		{
-			float initialValue = _testStat.CurrentValue;
-			string id = "test";
-			float magnitudeWithHighestPriority = magnitudesOrderedByPriority[magnitudesOrderedByPriority.Length - 1];
+			float initialValue = _statsContainer.GetStat(TestStat.A);
+			string id = "testModifier";
+			float magnitudeWithHighestPriority = magnitudesOrderedByPriority[^1];
 
 			for (int i = 0; i < magnitudesOrderedByPriority.Length; i++)
 			{
 				StatModifier modifier = new StatModifier(id + i, OperationType.Override, magnitudesOrderedByPriority[i], i);
-				_testStat.AddModifier(modifier);
+				_statsContainer.ApplyModifier(TestStat.A, modifier);
 			}
 
-			Assert.AreEqual(_testStat.CurrentValue, magnitudeWithHighestPriority);
+			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), magnitudeWithHighestPriority);
 
 			for (int i = 0; i < magnitudesOrderedByPriority.Length; i++)
 			{
-				_testStat.RemoveModifier(id + i);
+				_statsContainer.RemoveModifier(TestStat.A, id + i);
 			}
 
-			Assert.AreEqual(_testStat.CurrentValue, initialValue);
+			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), initialValue);
 		}
 
 		[Test]
@@ -157,7 +156,7 @@ namespace DeiveEx.StatSystem.EditorTests
 		[TestCase(10, .5f, 1)]
 		public void Is_Value_Correctly_Affected_By_Different_Modifiers(float additiveMagnitude, float multiplicativeMagnitude, float overrideMagnitude)
 		{
-			float initialValue = _testStat.CurrentValue;
+			float initialValue = _statsContainer.GetStat(TestStat.A);
 			string id = "test";
 			float expectedValue = 0;
 
@@ -165,24 +164,24 @@ namespace DeiveEx.StatSystem.EditorTests
 			StatModifier multModifier = new StatModifier(id + 1, OperationType.Multiplicative, multiplicativeMagnitude);
 			StatModifier overrideModifier = new StatModifier(id + 2, OperationType.Override, overrideMagnitude);
 
-			_testStat.AddModifier(addModifier);
+			_statsContainer.ApplyModifier(TestStat.A, addModifier);
 			expectedValue = initialValue + additiveMagnitude;
-			Assert.AreEqual(_testStat.CurrentValue, expectedValue);
+			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), expectedValue);
 
-			_testStat.AddModifier(multModifier);
+			_statsContainer.ApplyModifier(TestStat.A, multModifier);
 			expectedValue += (expectedValue * multiplicativeMagnitude);
-			Assert.AreEqual(_testStat.CurrentValue, expectedValue);
+			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), expectedValue);
 
-			_testStat.AddModifier(overrideModifier);
+			_statsContainer.ApplyModifier(TestStat.A, overrideModifier);
 			expectedValue = overrideMagnitude;
-			Assert.AreEqual(_testStat.CurrentValue, expectedValue);
+			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), expectedValue);
 
 			for (int i = 0; i < 3; i++)
 			{
-				_testStat.RemoveModifier(id + i);
+				_statsContainer.RemoveModifier(TestStat.A, id + i);
 			}
 
-			Assert.AreEqual(_testStat.CurrentValue, initialValue);
+			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), initialValue);
 		}
 
 		[Test]
@@ -190,8 +189,8 @@ namespace DeiveEx.StatSystem.EditorTests
 		{
 			StatModifier modifier = new StatModifier("test", OperationType.Custom, 0, 0, (baseValue, currentValue) => { return baseValue / 2f; });
 
-			_testStat.AddModifier(modifier);
-			Assert.AreEqual(_testStat.CurrentValue, _testStat.BaseValue / 2f);
+			_statsContainer.ApplyModifier(TestStat.A, modifier);
+			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), _statsContainer.GetStatBaseValue(TestStat.A) / 2f);
 		}
 
 		[Test]
@@ -199,14 +198,14 @@ namespace DeiveEx.StatSystem.EditorTests
 		{
 			StatModifier modifier = new StatModifier("test", OperationType.Additive, 1);
 
-			_testStat.AddModifier(modifier);
-			_testStat.AddModifier(modifier);
+			_statsContainer.ApplyModifier(TestStat.A, modifier);
+			_statsContainer.ApplyModifier(TestStat.A, modifier);
 
-			Assert.AreEqual(_testStat.CurrentValue, _testStat.BaseValue + 2);
+			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), _statsContainer.GetStatBaseValue(TestStat.A) + 2);
 
-			_testStat.RemoveModifier(modifier.id);
+			_statsContainer.RemoveModifier(TestStat.A, modifier.ID);
 
-			Assert.AreEqual(_testStat.CurrentValue, _testStat.BaseValue + 1);
+			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), _statsContainer.GetStatBaseValue(TestStat.A) + 1);
 		}
 
 		[Test]
@@ -214,38 +213,41 @@ namespace DeiveEx.StatSystem.EditorTests
 		{
 			StatModifier modifier = new StatModifier("test", OperationType.Additive, 1);
 
-			_testStat.AddModifier(modifier);
-			_testStat.AddModifier(modifier);
+			_statsContainer.ApplyModifier(TestStat.A, modifier);
+			_statsContainer.ApplyModifier(TestStat.A, modifier);
 
-			Assert.AreEqual(_testStat.CurrentValue, _testStat.BaseValue + 2);
+			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), _statsContainer.GetStatBaseValue(TestStat.A) + 2);
 
-			_testStat.RemoveModifier(modifier.id, true);
+			_statsContainer.RemoveModifier(TestStat.A, modifier.ID, true);
 
-			Assert.AreEqual(_testStat.CurrentValue, _testStat.BaseValue);
+			Assert.AreEqual(_statsContainer.GetStat(TestStat.A), _statsContainer.GetStatBaseValue(TestStat.A));
 		}
 
 		[Test]
 		public void Events_are_Fired_Correctly()
 		{
+			int statAdded = 0;
 			int baseChanged = 0;
 			int modifierChanged = 0;
 
-			_testStat.BaseValueChanged += (sender, e) => { baseChanged++; };
+			_statsContainer.StatAdded += (sender, e) => { statAdded++; };
+			_statsContainer.StatValueChanged += (sender, e) => { baseChanged++; };
+			_statsContainer.ModifierAdded += (sender, e) => { modifierChanged++; };
+			_statsContainer.ModifierRemoved += (sender, e) => { modifierChanged--; };
 
-			_testStat.ModifierAdded += (sender, e) => { modifierChanged++; };
-
-			_testStat.ModifierRemoved += (sender, e) => { modifierChanged--; };
-
-			_testStat.BaseValue = 1;
+			_statsContainer.AddStat(TestStat.B);
+			Assert.AreEqual(statAdded, 1);
+			
+			_statsContainer.SetStat(TestStat.A, 1);
 			Assert.AreEqual(baseChanged, 1);
 			Assert.AreEqual(modifierChanged, 0);
 
 			StatModifier modifier = new StatModifier("test", OperationType.Additive, 10);
-			_testStat.AddModifier(modifier);
+			_statsContainer.ApplyModifier(TestStat.A, modifier);
 
 			Assert.AreEqual(modifierChanged, 1);
 
-			_testStat.RemoveModifier(modifier.id);
+			_statsContainer.RemoveModifier(TestStat.A, modifier.ID);
 			Assert.AreEqual(modifierChanged, 0);
 		}
 
@@ -256,15 +258,13 @@ namespace DeiveEx.StatSystem.EditorTests
 		[TestCase(-10)]
 		public void Stat_BaseValue_Handlers_Are_Correctly_Registered_And_Executed(float value)
 		{
-			StatBaseValueChangeHandler testHandler = new StatBaseValueChangeHandler(STAT_NAME, (targetState, targetValue, container) => { return Mathf.Max(targetValue, 0); });
+			_statsContainer.RegisterBaseValueHandler(TestStat.A, (stat, targetValue, container) => Mathf.Max(targetValue, 0));
+			_statsContainer.SetStat(TestStat.A, value);
+			Assert.AreEqual(_statsContainer.GetStatBaseValue(TestStat.A), Mathf.Max(value, 0));
 
-			_statsContainer.RegisterBaseValueHandler(testHandler);
-			_statsContainer.SetStat(STAT_NAME, value);
-			Assert.AreEqual(_statsContainer.GetStatBaseValue(STAT_NAME), Mathf.Max(value, 0));
-
-			_statsContainer.UnregisterBaseValueHandler(STAT_NAME);
-			_statsContainer.SetStat(STAT_NAME, value);
-			Assert.AreEqual(_statsContainer.GetStatBaseValue(STAT_NAME), value);
+			_statsContainer.UnregisterBaseValueHandler(TestStat.A);
+			_statsContainer.SetStat(TestStat.A, value);
+			Assert.AreEqual(_statsContainer.GetStatBaseValue(TestStat.A), value);
 		}
 	}
 }
