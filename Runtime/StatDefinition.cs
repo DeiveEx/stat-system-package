@@ -26,7 +26,7 @@ namespace DeiveEx.StatSystem
 		/// <summary>
 		/// All modifiers currently applied to this stat
 		/// </summary>
-		public ICollection<StatModifier> Modifiers => _modifiers;
+		public IReadOnlyList<StatModifier> Modifiers => _modifiers;
 		
 		#endregion
 		

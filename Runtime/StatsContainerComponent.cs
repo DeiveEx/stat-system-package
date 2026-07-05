@@ -7,11 +7,13 @@ namespace DeiveEx.StatSystem
     {
         private StatsContainer<T> _statsContainer;
 
-        public StatsContainer<T> StatsContainer => _statsContainer;
-
-        private void Awake()
+        public StatsContainer<T> StatsContainer
         {
-            _statsContainer = new StatsContainer<T>(GetResolver());
+            get
+            {
+                _statsContainer ??= new StatsContainer<T>(GetResolver());
+                return _statsContainer;
+            }
         }
         
         protected abstract IStatCurrentValueResolver<T> GetResolver();

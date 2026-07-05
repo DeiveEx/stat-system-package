@@ -2,7 +2,7 @@
 {
     public class OverrideModifier : ValueModifier
     {
-        public readonly int Priority;
+        public int Priority { get; }
 
         public OverrideModifier(string id, float value, int priority = 0) : base(id, value)
         {

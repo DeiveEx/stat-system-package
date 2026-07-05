@@ -2,7 +2,7 @@
 {
     public abstract class ValueModifier : StatModifier
     {
-        public readonly float Value;
+        public float Value { get; }
 		
         protected ValueModifier(string id, float value) : base(id)
         {

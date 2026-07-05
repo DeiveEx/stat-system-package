@@ -4,8 +4,7 @@ namespace DeiveEx.StatSystem
 {
     public static class StatContainerExtensions
     {
-		private static readonly StringBuilder _sb = new ();
-        
+
         /// <summary>
         /// Helper method to add a value to the current stat base value
         /// </summary>
@@ -15,7 +14,7 @@ namespace DeiveEx.StatSystem
         /// <param name="bypassStatHandler">Should the stat handler be skipped? The stat handler can process the value before setting it</param>
         public static void AddToStat<T>(this StatsContainer<T> container, T statKey, float value, bool bypassStatHandler = false)
         {
-            var currentValue = container.GetStat(statKey);
+            var currentValue = container.GetStatBaseValue(statKey);
             container.SetStat(statKey, currentValue + value, bypassStatHandler);
         }
 
@@ -29,8 +28,8 @@ namespace DeiveEx.StatSystem
         {
             if (!container.StatExists(statID))
                 container.AddStat(statID, value);
-			
-            container.SetStat(statID, value);
+            else
+                container.SetStat(statID, value);
         }
         
         /// <summary>
@@ -50,17 +49,34 @@ namespace DeiveEx.StatSystem
         /// <param name="container">The target container</param>
         public static string GetDebugInfo<T>(this StatsContainer<T> container)
         {
-            _sb.Clear();
-            _sb.AppendLine($"= [STATS<{container.Id}>]");
-            _sb.Append("\n");
+            var sb = new StringBuilder();
+            sb.AppendLine($"= [STATS<{container.Id}>]");
+            sb.Append("\n");
 
             foreach (var id in container.Stats)
             {
-                _sb.Append($"- {id}: {container.GetStat(id)} (Base: {container.GetStatBaseValue(id)})");
-                _sb.Append("\n");
+                sb.Append($"- {id}: {container.GetStat(id)} (Base: {container.GetStatBaseValue(id)})");
+                sb.Append("\n");
+
+                foreach (var modifier in container.GetStatModifiers(id))
+                {
+                    sb.Append($"  - [{modifier.ID}] {modifier.GetDebugInfo()}");
+                    sb.Append("\n");
+                }
             }
 
-            return _sb.ToString();
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Returns a string describing a modifier for Debug purposes
+        /// </summary>
+        /// <param name="modifier">The target modifier</param>
+        public static string GetDebugInfo(this StatModifier modifier)
+        {
+            return modifier is ValueModifier valueModifier
+                ? $"{modifier.GetType().Name}: {valueModifier.Value}"
+                : modifier.GetType().Name;
         }
     }
 }

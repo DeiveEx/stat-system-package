@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace DeiveEx.StatSystem
 {
@@ -28,9 +29,11 @@ namespace DeiveEx.StatSystem
 		public delegate float StatChangeHandlerDelegate(T targetStat, float targetValue, StatsContainer<T> statsContainer);
 
 		public event EventHandler<T> StatAdded;
+		public event EventHandler<T> StatRemoved;
 		public event EventHandler<T> ModifierAdded;
 		public event EventHandler<T> ModifierRemoved;
 		public event EventHandler<StatChangedEventArgs<T>> StatValueChanged;
+		public event EventHandler<StatChangedEventArgs<T>> StatBaseValueChanged;
 
 		#endregion
 		
@@ -77,6 +80,21 @@ namespace DeiveEx.StatSystem
 		}
 
 		/// <summary>
+		/// Removes a stat from this container, along with any registered base value handler
+		/// </summary>
+		/// <param name="statKey">The stat to remove</param>
+		/// <returns>True if the stat existed and was removed</returns>
+		public bool RemoveStat(T statKey)
+		{
+			if (!_stats.Remove(statKey))
+				return false;
+
+			_baseValueHandlers.Remove(statKey);
+			StatRemoved?.Invoke(this, statKey);
+			return true;
+		}
+
+		/// <summary>
 		/// Gets a stat current value, AFTER applying all modifiers
 		/// </summary>
 		/// <param name="statKey">The stat to search for</param>
@@ -115,13 +133,16 @@ namespace DeiveEx.StatSystem
 			//If we don't, just override the value
 			stat.BaseValue = newValue;
 			ResolveStatCurrentValue(statKey, stat);
-			
-			StatValueChanged?.Invoke(this, new StatChangedEventArgs<T>()
+
+			if (!Mathf.Approximately(oldValue, newValue))
 			{
-				Stat = statKey,
-				OldValue = oldValue,
-				NewValue = newValue,
-			});
+				StatBaseValueChanged?.Invoke(this, new StatChangedEventArgs<T>()
+				{
+					Stat = statKey,
+					OldValue = oldValue,
+					NewValue = newValue,
+				});
+			}
 		}
 
 		/// <summary>
@@ -153,6 +174,11 @@ namespace DeiveEx.StatSystem
 			ResolveStatCurrentValue(statKey, stat);
 			ModifierRemoved?.Invoke(this, statKey);
 			return true;
+		}
+		
+		public IReadOnlyList<StatModifier> GetStatModifiers(T statKey)
+		{
+			return GetStatDefinition(statKey).Modifiers;
 		}
 
 		/// <summary>
@@ -187,7 +213,18 @@ namespace DeiveEx.StatSystem
 
 		private void ResolveStatCurrentValue(T statKey, StatDefinition stat)
 		{
+			var oldValue = stat.CurrentValue;
 			stat.CurrentValue = _currentValueResolver.ResolveCurrentValue(statKey, this, stat.Modifiers);
+
+			if (Mathf.Approximately(oldValue, stat.CurrentValue))
+				return;
+
+			StatValueChanged?.Invoke(this, new StatChangedEventArgs<T>()
+			{
+				Stat = statKey,
+				OldValue = oldValue,
+				NewValue = stat.CurrentValue,
+			});
 		}
 		
 		private StatDefinition GetStatDefinition(T statKey)
