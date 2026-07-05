@@ -18,16 +18,28 @@ https://github.com/DeiveEx/stat-system-package.git
 - The current value is the base value after modifiers are applied
 
 ## StatModifier
-- Modifies the current value of a stat
-- Operations can be additive, multiplicative, overrides or custom calculations
-- Order of operations is: additive > multiplicative > custom. If we have any override operation, only the one with the highest priority is applied, since it makes no sense to calculate anything if it's gonna be overridden. 
-- Additive operations are just added to the base value. E.g.: base + (A + B + C)
-- Multiplicative operations are added together and THEN multiplied by the base value. E.g.: base * (A + B + C)
+- Base class for modifying the current value of a stat
+- Current value calculation is done by `IStatCurrentValueResolver`
+- Provided modifiers:
+  - Additive: `current = base + (A + B + C)`
+  - Multiplicative: `current = base + (base * (A + B + C))`
+  - Overrides: `current = A (based on priority)`
+  - Custom: `current = CustomCalculation()`
+- When additive and multiplicative modifiers are combined, the multiplicative part applies to the additive result, not the raw base: `current = (base + Σadditive) * (1 + Σmultiplicative)`
+
+## DefaultStatResolver
+- Default implementation of `IStatCurrentValueResolver`
+- Resolves the Stat CurrentValue in the following order:
+  1. Checks if there's any override modifier. If yes, set the CurrentValue to that since it makes no sense to calculate anything if it's just gonna be overriden. The override with the highest priority wins; between overrides with the same priority, the last applied wins
+  2. Apply additive modifiers
+  3. Apply multiplicative modifiers
+  4. Apply custom calculations, in the order they were applied. While an override is active, only custom modifiers created with `applyOnOverride = true` are applied (on top of the override value)
 
 ## StatsContainer
 - A container for stats
 - Responsible for:
   - Holding/getting/setting the value of a stat
+  - Adding/removing stats
   - Applying/removing modifiers to stats
   - Checking if a stat exists
   - Register a StatChangeHandlerDelegate to stats that is applied before calculating the CurrentValue.
