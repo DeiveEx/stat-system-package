@@ -2,11 +2,13 @@ using System.Text;
 
 namespace DeiveEx.StatSystem
 {
+    /// <summary>
+    /// Utility methods for <see cref="StatsContainer{T}"/>
+    /// </summary>
     public static class StatContainerExtensions
     {
-
         /// <summary>
-        /// Helper method to add a value to the current stat base value
+        /// Helper method to add a value to the given stat base value
         /// </summary>
         /// <param name="container">The target container</param>
         /// <param name="statKey">The stat to set the value of</param>
@@ -41,6 +43,42 @@ namespace DeiveEx.StatSystem
         {
             foreach (var statInfo in statsCollection)
                 container.AddStat(statInfo.key, statInfo.stat);
+        }
+
+        /// <summary>
+        /// Get a stat current value, if it exists inside the container
+        /// </summary>
+        /// <param name="container">The target container</param>
+        /// <param name="statKey">The stat to get</param>
+        /// <param name="value">The current value of the stat</param>
+        /// <returns>True if the stat exists in teh container</returns>
+        public static bool TryGetStat<T>(this StatsContainer<T> container, T statKey, out float value)
+        {
+            value = 0;
+            
+            if(!container.StatExists(statKey))
+                return false;
+            
+            value = container.GetStat(statKey);
+            return true;
+        }
+        
+        /// <summary>
+        /// Get a stat base value (before modifiers are applied), if it exists inside the container
+        /// </summary>
+        /// <param name="container">The target container</param>
+        /// <param name="statKey">The stat to get</param>
+        /// <param name="value">The base value of the stat</param>
+        /// <returns>True if the stat exists in teh container</returns>
+        public static bool TryGetStatBaseValue<T>(this StatsContainer<T> container, T statKey, out float value)
+        {
+            value = 0;
+            
+            if(!container.StatExists(statKey))
+                return false;
+            
+            value = container.GetStatBaseValue(statKey);
+            return true;
         }
         
         /// <summary>
