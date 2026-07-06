@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 
 namespace DeiveEx.StatSystem
@@ -28,7 +29,7 @@ namespace DeiveEx.StatSystem
         /// <param name="value">The value to set the stat to</param>
         public static void SetOrAddStat<T>(this StatsContainer<T> container, T statID, float value)
         {
-            if (!container.StatExists(statID))
+            if (!container.HasStat(statID))
                 container.AddStat(statID, value);
             else
                 container.SetStat(statID, value);
@@ -56,7 +57,7 @@ namespace DeiveEx.StatSystem
         {
             value = 0;
             
-            if(!container.StatExists(statKey))
+            if(!container.HasStat(statKey))
                 return false;
             
             value = container.GetStat(statKey);
@@ -74,11 +75,26 @@ namespace DeiveEx.StatSystem
         {
             value = 0;
             
-            if(!container.StatExists(statKey))
+            if(!container.HasStat(statKey))
                 return false;
             
             value = container.GetStatBaseValue(statKey);
             return true;
+        }
+        
+        /// <summary>
+        /// Convenience overload of <see cref="RegisterBaseValueHandler(StatsContainer{T},T,Func{float,float})"/> for handlers
+        /// that only care about the value, e.g. <c>value => Mathf.Max(value, 0)</c>
+        /// </summary>
+        /// <param name="container">The target container</param>
+        /// <param name="statKey">The target stat</param>
+        /// <param name="handler">The handler that will modify the stat value</param>
+        public static void RegisterBaseValueHandler<T>(this StatsContainer<T> container, T statKey, Func<float, float> handler)
+        {
+            if (handler == null)
+                throw new ArgumentNullException(nameof(handler));
+
+            container.RegisterBaseValueHandler(statKey, (_, value, _) => handler(value));
         }
         
         /// <summary>

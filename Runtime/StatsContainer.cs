@@ -30,8 +30,8 @@ namespace DeiveEx.StatSystem
 
 		public event EventHandler<T> StatAdded;
 		public event EventHandler<T> StatRemoved;
-		public event EventHandler<T> ModifierAdded;
-		public event EventHandler<T> ModifierRemoved;
+		public event EventHandler<ModifierChangedEventArgs<T>> ModifierAdded;
+		public event EventHandler<ModifierChangedEventArgs<T>> ModifierRemoved;
 		public event EventHandler<StatChangedEventArgs<T>> StatValueChanged;
 		public event EventHandler<StatChangedEventArgs<T>> StatBaseValueChanged;
 
@@ -56,8 +56,8 @@ namespace DeiveEx.StatSystem
 		/// Check if a stat exists in this container
 		/// </summary>
 		/// <param name="statKey">The stat to search for</param>
-		/// <returns>True if if it exists</returns>
-		public bool StatExists(T statKey)
+		/// <returns>True if it exists</returns>
+		public bool HasStat(T statKey)
 		{
 			return _stats.ContainsKey(statKey);
 		}
@@ -71,7 +71,7 @@ namespace DeiveEx.StatSystem
 		public void AddStat(T key, float initialValue = 0)
 		{
 			//We don't wanna add repeated states
-			if (StatExists(key))
+			if (HasStat(key))
 				throw new InvalidOperationException($"A stat with the name [{key}] was already added to the stat list");
 
 			var newStat = new StatDefinition(initialValue);
@@ -146,20 +146,28 @@ namespace DeiveEx.StatSystem
 		}
 
 		/// <summary>
-		/// Apply a modifier to the state
+		/// Apply a modifier to the stat
 		/// </summary>
 		/// <param name="statKey">The stat to receive the modifier</param>
 		/// <param name="modifier">The modifier to be applied</param>
-		public void ApplyModifier(T statKey, StatModifier modifier)
+		/// <returns>A handle that removes this exact modifier instance when disposed. Disposing it more than once,
+		/// or after the modifier/stat was already removed, is a safe no-op. Ignoring it is also fine.</returns>
+		public IDisposable ApplyModifier(T statKey, StatModifier modifier)
 		{
 			var stat = GetStatDefinition(statKey);
 			stat.AddModifier(modifier);
 			ResolveStatCurrentValue(statKey, stat);
-			ModifierAdded?.Invoke(this, statKey);
+			ModifierAdded?.Invoke(this, new ModifierChangedEventArgs<T>()
+			{
+				Stat = statKey,
+				Modifier = modifier,
+			});
+
+			return new ModifierHandle(this, statKey, modifier);
 		}
 
 		/// <summary>
-		/// Removes a modifier from a stat
+		/// Removes a modifier from a stat by its ID
 		/// </summary>
 		/// <param name="statKey">The stat to remove the modifier from</param>
 		/// <param name="id">The ID of the modifier</param>
@@ -167,33 +175,100 @@ namespace DeiveEx.StatSystem
 		public bool RemoveModifier(T statKey, string id, bool removeAll = false)
 		{
 			var stat = GetStatDefinition(statKey);
-			
-			if (!stat.RemoveModifier(id, removeAll)) 
+			bool removedAny = false;
+
+			do
+			{
+				var modifier = stat.FindModifier(id);
+
+				if (modifier == null)
+					break;
+
+				stat.RemoveModifier(modifier);
+				ResolveStatCurrentValue(statKey, stat);
+				ModifierRemoved?.Invoke(this, new ModifierChangedEventArgs<T>()
+				{
+					Stat = statKey,
+					Modifier = modifier,
+				});
+
+				removedAny = true;
+			} while (removeAll);
+
+			return removedAny;
+		}
+
+		/// <summary>
+		/// Removes a specific modifier instance from a stat.
+		/// <para>Unlike the ID overload, this doesn't throw if the stat doesn't exist, so handles can be safely disposed after a stat was removed.</para>
+		/// </summary>
+		/// <param name="statKey">The stat to remove the modifier from</param>
+		/// <param name="modifier">The modifier instance to remove</param>
+		/// <returns>True if the modifier was applied to the stat and was removed</returns>
+		public bool RemoveModifier(T statKey, StatModifier modifier)
+		{
+			if (!_stats.TryGetValue(statKey, out var stat) || !stat.RemoveModifier(modifier))
 				return false;
-			
+
 			ResolveStatCurrentValue(statKey, stat);
-			ModifierRemoved?.Invoke(this, statKey);
+			ModifierRemoved?.Invoke(this, new ModifierChangedEventArgs<T>()
+			{
+				Stat = statKey,
+				Modifier = modifier,
+			});
+
 			return true;
 		}
-		
+
 		public IReadOnlyList<StatModifier> GetStatModifiers(T statKey)
 		{
 			return GetStatDefinition(statKey).Modifiers;
 		}
 
 		/// <summary>
+		/// Checks if a stat has at least one modifier with the given ID applied
+		/// </summary>
+		/// <param name="statKey">The stat to check</param>
+		/// <param name="id">The ID of the modifier</param>
+		public bool HasModifier(T statKey, string id)
+		{
+			return GetStatDefinition(statKey).FindModifier(id) != null;
+		}
+
+		/// <summary>
+		/// Re-resolves the current value of a stat, firing <see cref="StatValueChanged"/> if it changed.
+		/// <para>Useful when a modifier reads OTHER stats: the container can't know about that dependency, so call this to refresh the value after the other stat changes.</para>
+		/// </summary>
+		/// <param name="statKey">The stat to recalculate</param>
+		public void RecalculateStat(T statKey)
+		{
+			ResolveStatCurrentValue(statKey, GetStatDefinition(statKey));
+		}
+
+		/// <summary>
+		/// Re-resolves the current value of all stats in this container
+		/// </summary>
+		public void RecalculateAll()
+		{
+			foreach (var pair in _stats)
+				ResolveStatCurrentValue(pair.Key, pair.Value);
+		}
+
+		/// <summary>
 		/// Register a handler that can modify the final base value <b>BEFORE</b> the value is applied to the Stat.
 		/// <para>One good use of this is for clamping.</para>
+		/// <para>Only one handler is allowed per stat: registering a new one replaces the previous handler.</para>
 		/// </summary>
 		/// <param name="statKey">The target stat</param>
 		/// <param name="handler">The handler object that will modify the stat value</param>
 		public void RegisterBaseValueHandler(T statKey, StatChangeHandlerDelegate handler)
 		{
+			if (handler == null)
+				throw new ArgumentNullException(nameof(handler));
+
 			var stat = GetStatDefinition(statKey);
-			
-			if (!_baseValueHandlers.TryAdd(statKey, handler))
-				throw new InvalidOperationException($"A handler for the base value of the stat with key [{statKey}] already exists. Only one handler per stat is allowed.");
-			
+			_baseValueHandlers[statKey] = handler;
+
 			//Apply the handler
 			SetStat(statKey, stat.BaseValue);
 		}
@@ -206,7 +281,37 @@ namespace DeiveEx.StatSystem
 		{
 			_baseValueHandlers.Remove(targetStat);
 		}
-		
+
+		/// <summary>
+		/// Returns a copy of all stats and their current base values, e.g. for saving.
+		/// <para>Modifiers are not included, since they're live objects: re-applying them is the game's responsibility.</para>
+		/// </summary>
+		public Dictionary<T, float> GetBaseValueSnapshot()
+		{
+			var snapshot = new Dictionary<T, float>(_stats.Count);
+
+			foreach (var pair in _stats)
+				snapshot[pair.Key] = pair.Value.BaseValue;
+
+			return snapshot;
+		}
+
+		/// <summary>
+		/// Applies a snapshot created by <see cref="GetBaseValueSnapshot"/>, e.g. when loading.
+		/// <para>Stats that don't exist yet are created. Base value handlers are bypassed, since the snapshot values were already processed when they were set.</para>
+		/// </summary>
+		/// <param name="snapshot">The snapshot to apply</param>
+		public void ApplySnapshot(IReadOnlyDictionary<T, float> snapshot)
+		{
+			foreach (var pair in snapshot)
+			{
+				if (HasStat(pair.Key))
+					SetStat(pair.Key, pair.Value, bypassStatHandler: true);
+				else
+					AddStat(pair.Key, pair.Value);
+			}
+		}
+
 		#endregion
 		
 		#region Private Methods
@@ -229,10 +334,34 @@ namespace DeiveEx.StatSystem
 		
 		private StatDefinition GetStatDefinition(T statKey)
 		{
-			if (!StatExists(statKey))
+			if (!_stats.TryGetValue(statKey, out var stat))
 				throw new KeyNotFoundException($"Stat container [{_id}] does not have a stat with the key [{statKey}]");
 
-			return _stats[statKey];
+			return stat;
+		}
+
+		#endregion
+
+		#region Nested Types
+
+		private class ModifierHandle : IDisposable
+		{
+			private StatsContainer<T> _container;
+			private readonly T _statKey;
+			private readonly StatModifier _modifier;
+
+			public ModifierHandle(StatsContainer<T> container, T statKey, StatModifier modifier)
+			{
+				_container = container;
+				_statKey = statKey;
+				_modifier = modifier;
+			}
+
+			public void Dispose()
+			{
+				_container?.RemoveModifier(_statKey, _modifier);
+				_container = null;
+			}
 		}
 
 		#endregion

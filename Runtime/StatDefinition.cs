@@ -1,35 +1,34 @@
 using System.Collections.Generic;
-using System.Linq;
 
 namespace DeiveEx.StatSystem
 {
 	internal class StatDefinition
 	{
 		#region Fields
-		
+
 		private readonly List<StatModifier> _modifiers;
 
 		#endregion
 
 		#region Properties
-		
+
 		/// <summary>
 		/// The base value for the stat
 		/// </summary>
 		public float BaseValue { get; set; }
-		
+
 		/// <summary>
 		/// The value of the stat after all modifiers are applied
 		/// </summary>
 		public float CurrentValue { get; set; }
-		
+
 		/// <summary>
 		/// All modifiers currently applied to this stat
 		/// </summary>
 		public IReadOnlyList<StatModifier> Modifiers => _modifiers;
-		
+
 		#endregion
-		
+
 		#region Constructors
 
 		public StatDefinition(float startValue)
@@ -48,15 +47,26 @@ namespace DeiveEx.StatSystem
 			_modifiers.Add(modifier);
 		}
 
-		public bool RemoveModifier(string id, bool removeAll = false)
+		/// <summary>
+		/// Returns the first applied modifier with the given ID, or null if there's none
+		/// </summary>
+		public StatModifier FindModifier(string id)
 		{
-			if (removeAll)
-				return _modifiers.RemoveAll(x => x.ID == id) > 0;
-			
-			var firstModifier = _modifiers.FirstOrDefault(x => x.ID == id);
-			
-			return firstModifier != null && 
-			       _modifiers.Remove(firstModifier);
+			for (int i = 0; i < _modifiers.Count; i++)
+			{
+				if (_modifiers[i].ID == id)
+					return _modifiers[i];
+			}
+
+			return null;
+		}
+
+		/// <summary>
+		/// Removes the first occurrence of the given modifier instance
+		/// </summary>
+		public bool RemoveModifier(StatModifier modifier)
+		{
+			return _modifiers.Remove(modifier);
 		}
 
 		#endregion
