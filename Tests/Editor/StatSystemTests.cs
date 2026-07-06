@@ -37,11 +37,11 @@ namespace DeiveEx.StatSystem.EditorTests
 		{
 			Assert.That(_statsContainer, Is.Not.Null);
 
-			Assert.That(_statsContainer.StatExists(TestStat.A), Is.True);
+			Assert.That(_statsContainer.HasStat(TestStat.A), Is.True);
 			Assert.That(_statsContainer.GetStatBaseValue(TestStat.A), Is.EqualTo(100));
 			Assert.That(_statsContainer.GetStat(TestStat.A), Is.EqualTo(100));
 
-			Assert.That(_statsContainer.StatExists(TestStat.B), Is.False);
+			Assert.That(_statsContainer.HasStat(TestStat.B), Is.False);
 		}
 
 		[TestCase(0)]
@@ -67,7 +67,7 @@ namespace DeiveEx.StatSystem.EditorTests
 			_statsContainer.StatRemoved += (sender, e) => { statRemoved++; };
 
 			Assert.That(_statsContainer.RemoveStat(TestStat.A), Is.True);
-			Assert.That(_statsContainer.StatExists(TestStat.A), Is.False);
+			Assert.That(_statsContainer.HasStat(TestStat.A), Is.False);
 			Assert.That(statRemoved, Is.EqualTo(1));
 
 			Assert.That(_statsContainer.RemoveStat(TestStat.A), Is.False);
@@ -196,6 +196,128 @@ namespace DeiveEx.StatSystem.EditorTests
 			_statsContainer.UnregisterBaseValueHandler(TestStat.A);
 			_statsContainer.SetStat(TestStat.A, value);
 			Assert.That(_statsContainer.GetStatBaseValue(TestStat.A), Is.EqualTo(value));
+		}
+
+		[Test]
+		public void Registering_A_BaseValue_Handler_Replaces_The_Previous_One()
+		{
+			_statsContainer.RegisterBaseValueHandler(TestStat.A, value => Mathf.Max(value, 0));
+			Assert.DoesNotThrow(() => _statsContainer.RegisterBaseValueHandler(TestStat.A, value => Mathf.Max(value, 10)));
+
+			_statsContainer.SetStat(TestStat.A, -5);
+			Assert.That(_statsContainer.GetStatBaseValue(TestStat.A), Is.EqualTo(10));
+		}
+
+		[Test]
+		public void Modifier_Events_Carry_The_Modifier()
+		{
+			ModifierChangedEventArgs<TestStat> addedArgs = null;
+			ModifierChangedEventArgs<TestStat> removedArgs = null;
+
+			_statsContainer.ModifierAdded += (sender, e) => { addedArgs = e; };
+			_statsContainer.ModifierRemoved += (sender, e) => { removedArgs = e; };
+
+			var modifier = new AdditiveModifier("test", 10);
+			_statsContainer.ApplyModifier(TestStat.A, modifier);
+
+			Assert.That(addedArgs, Is.Not.Null);
+			Assert.That(addedArgs.Stat, Is.EqualTo(TestStat.A));
+			Assert.That(addedArgs.Modifier, Is.SameAs(modifier));
+
+			_statsContainer.RemoveModifier(TestStat.A, modifier.ID);
+
+			Assert.That(removedArgs, Is.Not.Null);
+			Assert.That(removedArgs.Modifier, Is.SameAs(modifier));
+		}
+
+		[Test]
+		public void Modifier_Handle_Removes_The_Modifier_When_Disposed()
+		{
+			var handle = _statsContainer.ApplyModifier(TestStat.A, new AdditiveModifier("test", 10));
+			Assert.That(_statsContainer.GetStat(TestStat.A), Is.EqualTo(110));
+
+			handle.Dispose();
+			Assert.That(_statsContainer.GetStat(TestStat.A), Is.EqualTo(100));
+
+			//Disposing again should be a safe no-op, even if another modifier with the same ID was applied since
+			_statsContainer.ApplyModifier(TestStat.A, new AdditiveModifier("test", 10));
+			handle.Dispose();
+			Assert.That(_statsContainer.GetStat(TestStat.A), Is.EqualTo(110));
+		}
+
+		[Test]
+		public void Modifier_Handle_Is_Safe_To_Dispose_After_Stat_Removal()
+		{
+			var handle = _statsContainer.ApplyModifier(TestStat.A, new AdditiveModifier("test", 10));
+			_statsContainer.RemoveStat(TestStat.A);
+
+			Assert.DoesNotThrow(() => handle.Dispose());
+		}
+
+		[Test]
+		public void Modifier_Is_Removed_By_Instance()
+		{
+			var first = new AdditiveModifier("test", 10);
+			var second = new AdditiveModifier("test", 20);
+			_statsContainer.ApplyModifier(TestStat.A, first);
+			_statsContainer.ApplyModifier(TestStat.A, second);
+
+			//Both share the same ID, but only the exact instance should be removed
+			Assert.That(_statsContainer.RemoveModifier(TestStat.A, second), Is.True);
+			Assert.That(_statsContainer.GetStat(TestStat.A), Is.EqualTo(110));
+
+			Assert.That(_statsContainer.RemoveModifier(TestStat.A, second), Is.False);
+		}
+
+		[Test]
+		public void HasModifier_And_ModifierCount_Are_Correct()
+		{
+			Assert.That(_statsContainer.HasModifier(TestStat.A, "test"), Is.False);
+			Assert.That(_statsContainer.GetStatModifiers(TestStat.A).Count, Is.EqualTo(0));
+
+			_statsContainer.ApplyModifier(TestStat.A, new AdditiveModifier("test", 10));
+			_statsContainer.ApplyModifier(TestStat.A, new MultiplicativeModifier("other", 1));
+
+			Assert.That(_statsContainer.HasModifier(TestStat.A, "test"), Is.True);
+			Assert.That(_statsContainer.GetStatModifiers(TestStat.A).Count, Is.EqualTo(2));
+		}
+
+		[Test]
+		public void RecalculateStat_Refreshes_Cross_Stat_Modifiers()
+		{
+			//A's current value is derived from B's base value
+			_statsContainer.AddStat(TestStat.B, 10);
+			_statsContainer.ApplyModifier(TestStat.A, new CustomCalculationModifier("dependsOnB",
+				(baseValue, currentValue) => currentValue + _statsContainer.GetStatBaseValue(TestStat.B)));
+
+			Assert.That(_statsContainer.GetStat(TestStat.A), Is.EqualTo(110));
+
+			//Changing B doesn't automatically refresh A...
+			_statsContainer.SetStat(TestStat.B, 50);
+			Assert.That(_statsContainer.GetStat(TestStat.A), Is.EqualTo(110));
+
+			//...until we recalculate it
+			_statsContainer.RecalculateStat(TestStat.A);
+			Assert.That(_statsContainer.GetStat(TestStat.A), Is.EqualTo(150));
+		}
+
+		[Test]
+		public void Snapshot_Restores_Base_Values()
+		{
+			_statsContainer.ApplyModifier(TestStat.A, new AdditiveModifier("buff", 50));
+			var snapshot = _statsContainer.GetBaseValueSnapshot();
+
+			_statsContainer.SetStat(TestStat.A, 5);
+			_statsContainer.ApplySnapshot(snapshot);
+
+			//Base values are restored; modifiers are untouched
+			Assert.That(_statsContainer.GetStatBaseValue(TestStat.A), Is.EqualTo(100));
+			Assert.That(_statsContainer.GetStat(TestStat.A), Is.EqualTo(150));
+
+			//Applying to a container that doesn't have the stat creates it
+			var otherContainer = new StatsContainer<TestStat>(new DefaultStatResolver<TestStat>());
+			otherContainer.ApplySnapshot(snapshot);
+			Assert.That(otherContainer.GetStat(TestStat.A), Is.EqualTo(100));
 		}
 	}
 }

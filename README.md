@@ -41,9 +41,14 @@ https://github.com/DeiveEx/stat-system-package.git
   - Holding/getting/setting the value of a stat
   - Adding/removing stats
   - Applying/removing modifiers to stats
-  - Checking if a stat exists
+    - `ApplyModifier` returns an `IDisposable` handle that removes that exact modifier instance when disposed (safe to dispose multiple times or ignore entirely)
+    - Modifiers can be removed by ID (`removeAll` optionally removes every modifier sharing that ID) or by instance
+  - Checking if a stat exists (`StatExists`) or has a given modifier (`HasModifier`, `GetModifierCount`)
+  - Recalculating stats (`RecalculateStat`/`RecalculateAll`): if a modifier reads OTHER stats, the container can't know about that dependency, so call this to refresh the value when the other stat changes
+  - Saving/loading base values (`GetBaseValueSnapshot`/`ApplySnapshot`). Modifiers are live objects, so re-applying them is the game's responsibility
   - Register a StatChangeHandlerDelegate to stats that is applied before calculating the CurrentValue.
-    - Only one handler is allowed per stat
+    - Only one handler is allowed per stat: registering a new one replaces the previous handler
+    - A simpler `Func<float, float>` overload exists for handlers that only care about the value
 
 ## StatChangeHandlerDelegate
 - Function that can modify the final value of a stat before it's applied to the stat

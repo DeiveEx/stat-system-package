@@ -107,7 +107,7 @@ namespace DeiveEx.StatSystem.Editor
             }
         }
 
-        private void UpdateUI(object sender, T e) => Repaint();
         private void UpdateUI(object sender, StatChangedEventArgs<T> e) => Repaint();
+        private void UpdateUI(object sender, ModifierChangedEventArgs<T> e) => Repaint();
     }
 }
